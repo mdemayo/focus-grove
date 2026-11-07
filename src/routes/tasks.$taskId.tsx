@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowUp, Check, CheckCircle2, ChevronDown, Leaf, MessageCircle, PartyPopper, RefreshCw } from "lucide-react";
 import { currentStep, currentStepTitle } from "@/lib/mock-data";
 import { useTasks } from "@/lib/task-context";
+import { EmphasizedText } from "@/components/EmphasizedText";
 
 export const Route = createFileRoute("/tasks/$taskId")({
   head: () => ({
@@ -122,7 +123,7 @@ function TaskWorkspace() {
             {task.messages.map((message) => (
               <div key={message.id} className={message.role === "user" ? "ml-8 rounded-2xl rounded-br-md bg-primary px-4 py-3 text-sm text-primary-foreground" : "mr-3 rounded-2xl border border-border bg-background p-4 text-sm"}>
                 {message.role === "assistant" && <p className="mb-2 text-xs font-medium uppercase tracking-wide text-primary">One small step</p>}
-                <p className="whitespace-pre-line leading-relaxed">{message.text}</p>
+                <p className="whitespace-pre-line leading-relaxed"><EmphasizedText text={message.text} /></p>
               </div>
             ))}
             <div ref={endRef} />
