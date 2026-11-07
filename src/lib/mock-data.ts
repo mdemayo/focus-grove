@@ -9,7 +9,7 @@ export type Task = {
   objective: string;
   steps: TaskStep[];
   completedStepIds: string[];
-  alternativeStepId?: string;
+  alternativeStepId?: string | undefined;
   messages: ChatMessage[];
 };
 
