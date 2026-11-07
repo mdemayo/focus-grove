@@ -2,11 +2,13 @@ import { createContext, useContext, useEffect, useReducer, useRef, type ReactNod
 import { assistantReply, currentStep, initialTasks, type ChatMessage, type Task } from "@/lib/mock-data";
 
 export type TaskAction =
+  | { type: "restore"; tasks: Task[] }
   | { type: "complete-step"; taskId: string }
   | { type: "try-another-way"; taskId: string }
   | { type: "send-message"; taskId: string; text: string };
 
 export function taskReducer(tasks: Task[], action: TaskAction): Task[] {
+  if (action.type === "restore") return action.tasks;
   return tasks.map((task) => {
     if (task.id !== action.taskId) return task;
     const step = currentStep(task);
@@ -55,9 +57,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       const saved = window.localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved) as Task[];
-        if (Array.isArray(parsed) && parsed.length) {
-          for (const task of parsed) dispatch({ type: "send-message", taskId: task.id, text: "" });
-        }
+        if (Array.isArray(parsed) && parsed.length) dispatch({ type: "restore", tasks: parsed });
       }
     } catch { /* Keep mock data if saved state is unavailable. */ }
     restored.current = true;
