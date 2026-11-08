@@ -13,73 +13,7 @@ export type Task = {
   messages: ChatMessage[];
 };
 
-export const initialTasks: Task[] = [
-  {
-    id: "psychology-reading",
-    title: "Read chapter 4 — Cognitive Psychology",
-    course: "PSY 201",
-    due: "Today, 3 PM",
-    minutes: 25,
-    objective: "Understand how attention and memory work, and capture the ideas you need for Friday's seminar.",
-    steps: [
-      { id: "psy-1", title: "Read the chapter summary and learning goals", alternative: "Listen to the chapter summary using text-to-speech" },
-      { id: "psy-2", title: "Skim the headings and write down three questions", alternative: "Turn three headings into simple questions" },
-      { id: "psy-3", title: "Read the attention section and highlight two key ideas", alternative: "Read one page and explain its main idea out loud" },
-      { id: "psy-4", title: "Write a three-sentence summary from memory", alternative: "Record a short voice note summarizing the section" },
-      { id: "psy-5", title: "Choose one idea to mention in the seminar" },
-    ],
-    completedStepIds: ["psy-1", "psy-2"],
-    messages: [
-      { id: "psy-m1", role: "assistant", text: "You already know the chapter's shape. Let's focus on the attention section next—just two key ideas." },
-    ],
-  },
-  {
-    id: "biology-lab",
-    title: "Outline lab report intro",
-    course: "BIO 110",
-    due: "Today, 6 PM",
-    minutes: 20,
-    objective: "Create a clear introduction that explains the research question, background and hypothesis.",
-    steps: [
-      { id: "bio-1", title: "Write the research question in one sentence", alternative: "Finish this sentence: ‘We wanted to find out…’" },
-      { id: "bio-2", title: "Add two bullet points of background information", alternative: "Explain the background to a friend in two short sentences" },
-      { id: "bio-3", title: "Write your hypothesis as an if–then statement", alternative: "Start with: ‘If we change ___, then ___ will…’" },
-      { id: "bio-4", title: "Turn your bullets into a short paragraph" },
-      { id: "bio-5", title: "Read the introduction aloud and fix one unclear sentence" },
-    ],
-    completedStepIds: ["bio-1"],
-    messages: [],
-  },
-  {
-    id: "study-group",
-    title: "Reply to study group message",
-    course: "General",
-    due: "Today",
-    minutes: 5,
-    objective: "Confirm the study group time and share what you can prepare.",
-    steps: [{ id: "group-1", title: "Send a short reply confirming Sunday at 2 PM" }],
-    completedStepIds: ["group-1"],
-    messages: [{ id: "group-m1", role: "assistant", text: "All done. You kept it simple and moved on—nice work." }],
-  },
-  {
-    id: "derivatives-practice",
-    title: "Practice set: derivatives 1–10",
-    course: "MATH 150",
-    due: "Tomorrow",
-    minutes: 30,
-    objective: "Practice basic derivative rules and identify which problems need another look.",
-    steps: [
-      { id: "math-1", title: "Set up your page and copy the power rule", alternative: "Open your notes to the power rule and keep them beside you" },
-      { id: "math-2", title: "Solve problems 1 and 2 without checking the answers", alternative: "Talk through problem 1 aloud before writing anything" },
-      { id: "math-3", title: "Check your work and circle anything uncertain" },
-      { id: "math-4", title: "Solve problems 3–5 in one focused block" },
-      { id: "math-5", title: "Take a short break, then try problems 6–8" },
-      { id: "math-6", title: "Finish problems 9 and 10 and note one question" },
-    ],
-    completedStepIds: [],
-    messages: [],
-  },
-];
+export const initialTasks: Task[] = [];
 
 export const schedule = [
   { time: "10:00", title: "Statistics lecture", place: "Hall B" },

@@ -3,14 +3,33 @@ import { assistantReply, currentStep, initialTasks, type ChatMessage, type Task 
 
 export type TaskAction =
   | { type: "restore"; tasks: Task[] }
+  | { type: "add-task"; task: Task }
   | { type: "complete-step"; taskId: string }
   | { type: "try-another-way"; taskId: string }
-  | { type: "send-message"; taskId: string; text: string };
+  | { type: "send-message"; taskId: string; text: string }
+  | { type: "append-message"; taskId: string; message: ChatMessage }
+  | { type: "sync-progress"; taskId: string; completedStepIds: string[] };
 
 export function taskReducer(tasks: Task[], action: TaskAction): Task[] {
   if (action.type === "restore") return action.tasks;
+  if (action.type === "add-task") {
+  if (tasks.some((task) => task.id === action.task.id)) return tasks;
+  return [...tasks, action.task];
+  }
   return tasks.map((task) => {
     if (task.id !== action.taskId) return task;
+    if (action.type === "sync-progress") {
+      return {
+        ...task,
+        completedStepIds: action.completedStepIds,
+      };
+    }
+    if (action.type === "append-message") {
+      return {
+        ...task,
+        messages: [...task.messages, action.message],
+      };
+    }
     const step = currentStep(task);
     if (action.type === "complete-step") {
       if (!step || task.completedStepIds.includes(step.id)) return task;
@@ -40,9 +59,12 @@ export function taskReducer(tasks: Task[], action: TaskAction): Task[] {
 
 type TaskContextValue = {
   tasks: Task[];
+  addTask: (task: Task) => void;
+  appendMessage: (taskId: string, message: ChatMessage) => void;
   completeStep: (taskId: string) => void;
   tryAnotherWay: (taskId: string) => void;
-  sendMessage: (taskId: string, text: string) => void;
+  sendMessage: (taskId: string, text: string) => void
+  syncProgress: (taskId: string, completedStepIds: string[]) => void;
 };
 
 const TaskContext = createContext<TaskContextValue | null>(null);
@@ -72,6 +94,11 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   return (
     <TaskContext.Provider value={{
       tasks,
+      syncProgress: (taskId, completedStepIds) =>
+        dispatch({ type: "sync-progress", taskId, completedStepIds }),
+      appendMessage: (taskId, message) =>
+      dispatch({ type: "append-message", taskId, message }),
+      addTask: (task) => dispatch({ type: "add-task", task }),
       completeStep: (taskId) => dispatch({ type: "complete-step", taskId }),
       tryAnotherWay: (taskId) => dispatch({ type: "try-another-way", taskId }),
       sendMessage: (taskId, text) => dispatch({ type: "send-message", taskId, text }),

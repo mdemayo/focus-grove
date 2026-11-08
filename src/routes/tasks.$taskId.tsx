@@ -2,6 +2,7 @@ import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowUp, Check, CheckCircle2, ChevronDown, Leaf, MessageCircle, PartyPopper, RefreshCw } from "lucide-react";
 import { currentStep, currentStepTitle } from "@/lib/mock-data";
+import { sendToAdk, getAdkTaskPlan } from "@/lib/adk-client";
 import { useTasks } from "@/lib/task-context";
 import { EmphasizedText } from "@/components/EmphasizedText";
 
@@ -21,10 +22,12 @@ export const Route = createFileRoute("/tasks/$taskId")({
 
 function TaskWorkspace() {
   const { taskId } = Route.useParams();
-  const { tasks, completeStep, tryAnotherWay, sendMessage } = useTasks();
+  const { tasks, appendMessage, syncProgress } = useTasks();
   const task = tasks.find((item) => item.id === taskId);
   const [showRemaining, setShowRemaining] = useState(false);
   const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const [completing, setCompleting] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }); }, [task?.messages.length]);
@@ -35,13 +38,87 @@ function TaskWorkspace() {
   const progress = Math.round((completed / task.steps.length) * 100);
   const currentIndex = step ? task.steps.findIndex((item) => item.id === step.id) : -1;
   const remaining = currentIndex >= 0 ? task.steps.slice(currentIndex + 1) : [];
+  
+  async function handleComplete() {
+    if (!step || completing) return;
 
-  function submit() {
-    const text = input.trim();
-    if (!text) return;
-    sendMessage(task!.id, text);
-    setInput("");
+    setCompleting(true);
+
+    try {
+      const reply = await sendToAdk(
+        taskId,
+        "I have completed the current step. Mark it as completed and show only the next step. Respond in the language of our conversation."
+      );
+
+      appendMessage(taskId, {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        text: reply,
+      });
+
+      const plan = await getAdkTaskPlan(taskId);
+
+      // Actualizar el frontend solo si ADK confirmó el paso.
+      if (plan?.completed_steps.includes(currentIndex)) {
+        syncProgress(
+          taskId,
+          plan.completed_steps.map((index) => `step-${index}`)
+        );
+      } else {
+        alert("El agente todavía no confirmó este paso. Inténtalo nuevamente.");
+      }
+    } catch (error) {
+      console.error("Error completing step:", error);
+      alert("No se pudo actualizar el progreso. Inténtalo nuevamente.");
+    } finally {
+      setCompleting(false);
+    }
   }
+
+
+  
+  async function submit(textOverride?: string) {
+    const text = (textOverride ?? input).trim();
+    if (!text || sending) return;
+
+    setInput("");
+    setSending(true);
+
+    appendMessage(taskId, {
+      id: crypto.randomUUID(),
+      role: "user",
+      text,
+    });
+
+    try {
+      const reply = await sendToAdk(taskId, text);
+      const plan = await getAdkTaskPlan(taskId);
+
+      if (plan) {
+        syncProgress(
+          taskId,
+          plan.completed_steps.map((index) => `step-${index}`)
+        );
+      }
+
+      appendMessage(taskId, {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        text: reply,
+      });
+    } catch (error) {
+      console.error("Error connecting task chat to ADK:", error);
+
+      appendMessage(taskId, {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        text: "No pude conectarme con el asistente. Inténtalo nuevamente.",
+      });
+    } finally {
+      setSending(false);
+    }
+  }
+
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-8 md:px-10">
@@ -71,10 +148,11 @@ function TaskWorkspace() {
                 <h2 id="current-action" className="mt-3 max-w-xl font-display text-2xl leading-snug md:text-3xl">{currentStepTitle(task)}</h2>
                 {task.alternativeStepId === step.id && <p className="mt-2 text-sm opacity-75">Same objective, a different way in.</p>}
                 <div className="mt-7 flex flex-wrap gap-3">
-                  <button onClick={() => completeStep(task.id)} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90">
+                  <button onClick={handleComplete} disabled={completing} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90">
                     <Check className="h-4 w-4" aria-hidden /> Done
                   </button>
-                  <button onClick={() => tryAnotherWay(task.id)} disabled={!step.alternative} className="inline-flex items-center gap-2 rounded-xl bg-card px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50">
+                  <button onClick={() =>  submit("No quiero realizar el paso actual de esta manera. Propón una sola alternativa pequeña y concreta que ayude a cumplir el mismo objetivo. Espera mi confirmación.")}
+                    disabled={sending} className="inline-flex items-center gap-2 rounded-xl bg-card px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50">
                     <RefreshCw className="h-4 w-4" aria-hidden /> Try another way
                   </button>
                   <a href="#task-conversation" className="inline-flex items-center gap-2 rounded-xl border border-secondary-foreground/20 px-4 py-2.5 text-sm font-medium hover:bg-card/50">
