@@ -1,13 +1,15 @@
 import { Link } from "@tanstack/react-router";
 import { CheckCircle2, MessageCircle, Plus } from "lucide-react";
 import { useTasks } from "@/lib/task-context";
+import { Button } from "@/components/ui/button";
 
 type ConversationHistoryProps = {
   headingId: string;
   onNavigate?: () => void;
+  selectedTaskId?: string;
 };
 
-export function ConversationHistory({ headingId, onNavigate }: ConversationHistoryProps) {
+export function ConversationHistory({ headingId, onNavigate, selectedTaskId }: ConversationHistoryProps) {
   const { tasks } = useTasks();
 
   return (
@@ -16,14 +18,15 @@ export function ConversationHistory({ headingId, onNavigate }: ConversationHisto
         <h2 id={headingId} className="font-display text-lg font-medium">
           Your conversations
         </h2>
+        <Button asChild className="mt-4 h-11 w-full rounded-xl">
         <Link
           to="/assistant"
           onClick={onNavigate}
-          className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
         >
           <Plus className="h-4 w-4" aria-hidden />
           New conversation
         </Link>
+        </Button>
       </div>
 
       {tasks.length === 0 ? (
@@ -49,8 +52,10 @@ export function ConversationHistory({ headingId, onNavigate }: ConversationHisto
                   <Link
                     to="/tasks/$taskId"
                     params={{ taskId: task.id }}
+                    search={{ chat: true }}
                     onClick={onNavigate}
-                    className="block rounded-xl px-3 py-3 text-sm transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    aria-current={selectedTaskId === task.id ? "page" : undefined}
+                    className={`block rounded-xl px-3 py-3 text-sm transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${selectedTaskId === task.id ? "bg-sidebar-accent text-sidebar-accent-foreground" : ""}`}
                   >
                     <span className="flex items-start gap-2">
                       <span className="line-clamp-2 min-w-0 flex-1 font-medium leading-snug">

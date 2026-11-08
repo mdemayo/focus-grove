@@ -28,3 +28,7 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+## Presentation architecture
+- Expanded project chat is a validated search option on the existing task route, using the same mounted workspace and task context; navigation must not create ADK sessions or separate message state.
+- Conversation navigation reads the task context directly and shares a mobile drawer across project views to avoid duplicate histories.
