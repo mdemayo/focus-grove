@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 type ConversationHistoryProps = {
   headingId: string;
   onNavigate?: () => void;
-  selectedTaskId?: string;
+  selectedTaskId?: string | undefined;
 };
 
 export function ConversationHistory({ headingId, onNavigate, selectedTaskId }: ConversationHistoryProps) {

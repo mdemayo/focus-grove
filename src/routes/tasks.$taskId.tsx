@@ -10,7 +10,7 @@ import { ConversationHistory } from "@/components/ConversationHistory";
 import { ConversationNavigation } from "@/components/ConversationNavigation";
 
 export const Route = createFileRoute("/tasks/$taskId")({
-  validateSearch: (search: Record<string, unknown>): { chat?: boolean } => ({ chat: search.chat === true || search.chat === "true" ? true : undefined }),
+  validateSearch: (search: Record<string, unknown>): { chat?: boolean } => search['chat'] === true || search['chat'] === "true" ? { chat: true } : {},
   head: () => ({
     meta: [
       { title: "Task workspace — Steady" },
@@ -209,7 +209,7 @@ function TaskWorkspace() {
               {expandedChat && <p className="mt-1 text-xs text-muted-foreground">{completed}/{task.steps.length} steps completed</p>}</div>
             </div>
             <Button asChild variant="ghost" size={expandedChat ? "default" : "icon"} className="h-11 shrink-0 rounded-xl" title={expandedChat ? "Back to task" : "Expand conversation"}>
-              <Link to="/tasks/$taskId" params={{ taskId }} search={{ chat: expandedChat ? undefined : true }} aria-label={expandedChat ? "Back to task" : "Expand conversation"}>
+              <Link to="/tasks/$taskId" params={{ taskId }} search={expandedChat ? {} : { chat: true }} aria-label={expandedChat ? "Back to task" : "Expand conversation"}>
                 {expandedChat ? <><ArrowLeft aria-hidden /><span className="hidden sm:inline">Back to task</span></> : <Maximize2 aria-hidden />}
               </Link>
             </Button>
