@@ -13,7 +13,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:m-2 focus:rounded-md focus:bg-card focus:p-2">
         Skip to content
       </a>
-      <aside className="border-b border-border bg-sidebar md:sticky md:top-0 md:h-screen md:w-60 md:border-b-0 md:border-r">
+      <aside className="shrink-0 border-b border-border bg-sidebar md:sticky md:top-0 md:h-dvh md:w-48 md:border-b-0 md:border-r xl:w-60">
         <div className="flex items-center gap-2 px-6 py-5">
           <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground">
             <Leaf className="h-5 w-5" aria-hidden />
@@ -35,7 +35,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           ))}
         </nav>
       </aside>
-      <main id="main" className="flex-1">{children}</main>
+      <main id="main" className="min-w-0 flex-1">{children}</main>
     </div>
   );
 }

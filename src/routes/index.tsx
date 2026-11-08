@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, ChevronDown, ChevronRight, Clock, MapPin, Pause, Play, RotateCcw, Smile } from "lucide-react";
 import { currentStep, currentStepTitle, schedule, weekFocus } from "@/lib/mock-data";
 import { useTasks } from "@/lib/task-context";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -47,12 +48,11 @@ function FocusTimer() {
 
 function NextStepCarousel() {
   const { tasks } = useTasks();
-  const activeTasks = tasks.filter((task) => currentStep(task));
   const scroller = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState(0);
 
   function goTo(index: number) {
-    const next = Math.max(0, Math.min(index, activeTasks.length - 1));
+    const next = Math.max(0, Math.min(index, tasks.length - 1));
     scroller.current?.children[next]?.scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" });
     setPosition(next);
   }
@@ -60,20 +60,22 @@ function NextStepCarousel() {
   return (
     <section className="mt-8" aria-labelledby="next-steps-heading">
       <div className="flex items-end justify-between gap-4">
-        <div><h2 id="next-steps-heading" className="text-lg font-medium">Your next steps</h2><p className="mt-1 text-sm text-muted-foreground">Switch projects freely. Your place is saved.</p></div>
+        <div><h2 id="next-steps-heading" className="text-lg font-medium">Your next steps</h2></div>
         <div className="flex gap-2">
-          <button onClick={() => goTo(position - 1)} disabled={position === 0} aria-label="Previous next step" className="grid h-9 w-9 place-items-center rounded-full border border-border bg-card hover:bg-muted disabled:opacity-35"><ArrowLeft className="h-4 w-4" aria-hidden /></button>
-          <button onClick={() => goTo(position + 1)} disabled={position >= activeTasks.length - 1} aria-label="Next next step" className="grid h-9 w-9 place-items-center rounded-full border border-border bg-card hover:bg-muted disabled:opacity-35"><ArrowRight className="h-4 w-4" aria-hidden /></button>
+          <Button variant="outline" size="icon" onClick={() => goTo(position - 1)} disabled={position === 0} aria-label="Previous next step" className="h-11 w-11 rounded-full"><ArrowLeft aria-hidden /></Button>
+          <Button variant="outline" size="icon" onClick={() => goTo(position + 1)} disabled={position >= tasks.length - 1} aria-label="Next next step" className="h-11 w-11 rounded-full"><ArrowRight aria-hidden /></Button>
         </div>
       </div>
-      <div ref={scroller} onScroll={(event) => { const element = event.currentTarget; const width = element.firstElementChild?.clientWidth || 1; setPosition(Math.round(element.scrollLeft / (width + 16))); }} className="mt-4 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [scrollbar-width:thin]" aria-label="Next step for each active task">
-        {activeTasks.map((task) => (
-          <article key={task.id} className="flex min-w-[85%] snap-start flex-col rounded-2xl bg-secondary p-6 text-secondary-foreground sm:min-w-[60%] lg:min-w-[42%]">
-            <p className="text-sm font-medium opacity-75">{task.course} · {task.title}</p>
-            <h3 className="mt-3 font-display text-2xl leading-snug">{currentStepTitle(task)}</h3>
+      {tasks.length === 0 && <div className="mt-4 border-y border-border py-8"><p className="text-muted-foreground">A fresh start. What would you like to work on?</p><Button asChild className="mt-4 h-11 rounded-xl"><Link to="/assistant">New conversation <ArrowRight aria-hidden /></Link></Button></div>}
+      <div ref={scroller} tabIndex={tasks.length ? 0 : undefined} onScroll={(event) => { const element = event.currentTarget; const width = element.firstElementChild?.clientWidth || 1; setPosition(Math.round(element.scrollLeft / (width + 16))); }} className="mt-4 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [scrollbar-width:thin]" aria-label="Next step for each project">
+        {tasks.map((task) => (
+          <article key={task.id} className="flex w-[85%] shrink-0 snap-start flex-col rounded-2xl bg-secondary p-6 text-secondary-foreground sm:w-[60%] lg:w-[48%]">
+            <p className="text-sm font-medium">{task.title}</p>
+            {!currentStep(task) && <Smile className="mt-4 h-6 w-6 text-primary" aria-hidden />}
+            <h3 className="mt-3 font-display text-2xl leading-snug">{currentStep(task) ? currentStepTitle(task) : "You did it!"}</h3>
             <div className="mt-auto pt-6">
-              <div className="flex items-center gap-3"><div className="h-1.5 flex-1 overflow-hidden rounded-full bg-card/60"><div className="h-full rounded-full bg-primary" style={{ width: `${(task.completedStepIds.length / task.steps.length) * 100}%` }} /></div><span className="text-xs font-medium">{task.completedStepIds.length}/{task.steps.length} steps</span></div>
-              <Link to="/tasks/$taskId" params={{ taskId: task.id }} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-card px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted">Continue task <ArrowRight className="h-4 w-4" aria-hidden /></Link>
+              <div className="flex items-center gap-3"><div className="h-1.5 flex-1 overflow-hidden rounded-full bg-card/60" role="progressbar" aria-label={`${task.title} progress`} aria-valuenow={task.steps.length ? Math.round((task.completedStepIds.length / task.steps.length) * 100) : 0} aria-valuemin={0} aria-valuemax={100}><div className="h-full rounded-full bg-primary" style={{ width: `${task.steps.length ? (task.completedStepIds.length / task.steps.length) * 100 : 0}%` }} /></div><span className="shrink-0 text-xs font-medium">{task.completedStepIds.length}/{task.steps.length} steps</span></div>
+              <Button asChild variant="outline" className="mt-5 h-11 rounded-xl bg-card"><Link to="/tasks/$taskId" params={{ taskId: task.id }}>{currentStep(task) ? "Continue task" : "View project"} <ArrowRight aria-hidden /></Link></Button>
             </div>
           </article>
         ))}

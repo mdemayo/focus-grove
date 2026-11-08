@@ -159,7 +159,8 @@
 }
 
 @layer base {
-  h1, h2, h3 { font-family: var(--font-display); letter-spacing: -0.01em; }
+  h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; }
+  p, h1, h2, h3 { overflow-wrap: anywhere; }
   :focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; }
-  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
 }

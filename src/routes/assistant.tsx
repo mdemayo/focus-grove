@@ -1,19 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowUp, Leaf, PanelLeft } from "lucide-react";
+import { ArrowUp, Leaf } from "lucide-react";
 import { starterPrompts, type ChatMessage } from "@/lib/mock-data";
 import { sendToAdk, getAdkTaskPlan } from "@/lib/adk-client";
 import { useTasks } from "@/lib/task-context";
 import { EmphasizedText } from "@/components/EmphasizedText";
 import { ConversationHistory } from "@/components/ConversationHistory";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { ConversationNavigation } from "@/components/ConversationNavigation";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/assistant")({
   head: () => ({
@@ -41,7 +35,6 @@ function Assistant() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -128,48 +121,22 @@ function Assistant() {
   }
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-8rem)] max-w-6xl md:h-screen">
+    <div className="mx-auto flex h-[calc(100dvh-8rem)] min-h-[24rem] max-w-6xl md:h-dvh">
       <aside
         aria-labelledby="desktop-conversation-history"
-        className="hidden w-72 shrink-0 border-r border-border bg-sidebar lg:block"
+        className="hidden w-60 shrink-0 border-r border-border bg-sidebar lg:block"
       >
         <ConversationHistory headingId="desktop-conversation-history" />
       </aside>
 
       <section className="flex min-w-0 flex-1 flex-col" aria-label="Assistant conversation">
         <div className="border-b border-border px-4 py-3 lg:hidden">
-          <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
-            <SheetTrigger asChild>
-              <button
-                type="button"
-                className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium shadow-soft transition-colors hover:bg-muted"
-              >
-                <PanelLeft className="h-4 w-4" aria-hidden />
-                Conversations
-              </button>
-            </SheetTrigger>
-            <SheetContent
-              side="left"
-              className="w-[85%] max-w-xs p-0"
-              aria-describedby="mobile-conversation-description"
-            >
-              <SheetHeader className="sr-only">
-                <SheetTitle>Your conversations</SheetTitle>
-                <SheetDescription id="mobile-conversation-description">
-                  Choose a saved project or start a new conversation.
-                </SheetDescription>
-              </SheetHeader>
-              <ConversationHistory
-                headingId="mobile-conversation-history"
-                onNavigate={() => setHistoryOpen(false)}
-              />
-            </SheetContent>
-          </Sheet>
+          <ConversationNavigation />
         </div>
 
         <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col px-6 md:px-10">
           <div
-            className="min-h-0 flex-1 overflow-y-auto py-10"
+             className="min-h-0 flex-1 overflow-y-auto py-6"
             aria-live="polite"
           >
             {messages.length === 0 ? (
@@ -189,14 +156,14 @@ function Assistant() {
 
                 <div className="mt-8 grid w-full max-w-lg gap-2 sm:grid-cols-2">
                   {starterPrompts.map((prompt) => (
-                    <button
+                     <Button variant="outline"
                       key={prompt}
                       onClick={() => send(prompt)}
                       disabled={thinking}
-                      className="rounded-xl border border-border bg-card p-3 text-left text-sm hover:bg-muted disabled:opacity-50"
+                       className="h-auto min-h-11 whitespace-normal rounded-xl bg-card p-3 text-left text-sm"
                     >
                       {prompt}
-                    </button>
+                     </Button>
                   ))}
                 </div>
               </div>
@@ -250,7 +217,7 @@ function Assistant() {
                       {[0, 1, 2].map((index) => (
                         <span
                           key={index}
-                          className="h-2 w-2 animate-pulse rounded-full bg-muted-foreground"
+                             className="h-2 w-2 animate-pulse rounded-full bg-muted-foreground motion-reduce:animate-none"
                           style={{
                             animationDelay: `${index * 150}ms`,
                           }}
@@ -289,17 +256,17 @@ function Assistant() {
                 }
               }}
               placeholder="Type a message…"
-              className="max-h-40 flex-1 resize-none bg-transparent px-3 py-2 outline-none placeholder:text-muted-foreground"
+              className="max-h-40 min-w-0 flex-1 resize-none bg-transparent px-3 py-2 outline-none placeholder:text-muted-foreground"
             />
 
-            <button
+            <Button size="icon"
               type="submit"
               disabled={!input.trim() || thinking}
               aria-label="Send"
-              className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-primary-foreground disabled:opacity-40"
+              className="h-11 w-11 shrink-0 rounded-xl"
             >
               <ArrowUp className="h-5 w-5" aria-hidden />
-            </button>
+            </Button>
           </form>
         </div>
       </section>
