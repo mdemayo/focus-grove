@@ -1,3 +1,4 @@
+import type { Alternative, Timing } from "@/lib/task-details";
 export type TaskStep = { id: string; title: string; alternative?: string };
 export type ChatMessage = { id: string; role: "user" | "assistant"; text: string };
 export type Task = {
@@ -11,6 +12,12 @@ export type Task = {
   completedStepIds: string[];
   alternativeStepId?: string | undefined;
   messages: ChatMessage[];
+  timing?: Timing;
+  activeAlternative?: Alternative;
+  goalId?: string;
+  contribution?: string;
+  outcome?: string;
+  actionState?: "proposed" | "accepted";
 };
 
 export const initialTasks: Task[] = [];
@@ -37,6 +44,7 @@ export function currentStep(task: Task) {
 export function currentStepTitle(task: Task) {
   const step = currentStep(task);
   if (!step) return "All steps complete";
+  if (task.activeAlternative?.stepId === step.id && !task.activeAlternative.acknowledged) return task.activeAlternative.text;
   return task.alternativeStepId === step.id && step.alternative ? step.alternative : step.title;
 }
 
