@@ -32,3 +32,6 @@ use the editor.
 ## Presentation architecture
 - Expanded project chat is a validated search option on the existing task route, using the same mounted workspace and task context; navigation must not create ADK sessions or separate message state.
 - Conversation navigation reads the task context directly and shares a mobile drawer across project views to avoid duplicate histories.
+- TaskProvider owns shared ADK action locks, confirmed progress, structured alternatives, timing and goal relationships; presentation surfaces call these handlers so navigation cannot fork sessions or action state.
+- Browser persistence keeps a backward-compatible versioned envelope at the original task key; restore after hydration before writing to preserve legacy tasks and avoid SSR mismatches.
+- ADK tools consume a structured action envelope with expected step and operation ID; ordinary chat cannot authorize completion, and starter acknowledgments never complete the underlying step.
