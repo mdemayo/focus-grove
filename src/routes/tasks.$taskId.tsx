@@ -1,12 +1,16 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowUp, Check, CheckCircle2, ChevronDown, Leaf, MessageCircle, PartyPopper, RefreshCw } from "lucide-react";
+import { ArrowLeft, ArrowUp, Check, CheckCircle2, ChevronDown, Leaf, Maximize2, MessageCircle, PartyPopper, RefreshCw } from "lucide-react";
 import { currentStep, currentStepTitle } from "@/lib/mock-data";
 import { sendToAdk, getAdkTaskPlan } from "@/lib/adk-client";
 import { useTasks } from "@/lib/task-context";
 import { EmphasizedText } from "@/components/EmphasizedText";
+import { Button } from "@/components/ui/button";
+import { ConversationHistory } from "@/components/ConversationHistory";
+import { ConversationNavigation } from "@/components/ConversationNavigation";
 
 export const Route = createFileRoute("/tasks/$taskId")({
+  validateSearch: (search: Record<string, unknown>): { chat?: boolean } => ({ chat: search.chat === true || search.chat === "true" ? true : undefined }),
   head: () => ({
     meta: [
       { title: "Task workspace — Steady" },
@@ -22,6 +26,7 @@ export const Route = createFileRoute("/tasks/$taskId")({
 
 function TaskWorkspace() {
   const { taskId } = Route.useParams();
+  const { chat: expandedChat } = Route.useSearch();
   const { tasks, appendMessage, syncProgress } = useTasks();
   const task = tasks.find((item) => item.id === taskId);
   const [showRemaining, setShowRemaining] = useState(false);
@@ -29,13 +34,14 @@ function TaskWorkspace() {
   const [sending, setSending] = useState(false);
   const [completing, setCompleting] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }); }, [task?.messages.length]);
   if (!task) throw notFound();
 
   const step = currentStep(task);
   const completed = task.completedStepIds.length;
-  const progress = Math.round((completed / task.steps.length) * 100);
+  const progress = task.steps.length ? Math.round((completed / task.steps.length) * 100) : 0;
   const currentIndex = step ? task.steps.findIndex((item) => item.id === step.id) : -1;
   const remaining = currentIndex >= 0 ? task.steps.slice(currentIndex + 1) : [];
   
@@ -121,7 +127,10 @@ function TaskWorkspace() {
 
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-8 md:px-10">
+    <div className={expandedChat ? "mx-auto flex h-[calc(100dvh-8rem)] min-h-[24rem] max-w-6xl md:h-dvh" : "mx-auto max-w-6xl px-4 py-6 sm:px-6 md:px-8"}>
+      {expandedChat && <aside className="hidden w-60 shrink-0 border-r border-border bg-sidebar lg:block" aria-labelledby="project-conversations"><ConversationHistory headingId="project-conversations" selectedTaskId={taskId} /></aside>}
+      <div className={expandedChat ? "flex min-w-0 flex-1 flex-col" : ""}>
+      {!expandedChat && <>
       <Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" aria-hidden /> Back to today
       </Link>
@@ -129,7 +138,7 @@ function TaskWorkspace() {
         <div className="max-w-2xl">
           <p className="text-sm font-medium text-primary">{task.course} · {task.due}</p>
           <h1 className="mt-2 text-3xl font-medium md:text-4xl">{task.title}</h1>
-          <p className="mt-3 leading-relaxed text-muted-foreground">{task.objective}</p>
+          {task.objective !== task.title && <p className="mt-3 leading-relaxed text-muted-foreground">{task.objective}</p>}
         </div>
         <div className="shrink-0 md:text-right">
           <p className="text-sm font-medium">{step ? `${completed} of ${task.steps.length} steps completed` : "Task complete"}</p>
@@ -138,26 +147,27 @@ function TaskWorkspace() {
           </div>
         </div>
       </header>
+      </>}
 
-      <div className="mt-8 grid items-start gap-6 lg:grid-cols-5">
-        <div className="space-y-6 lg:col-span-3">
-          <section className="rounded-2xl bg-secondary p-6 text-secondary-foreground shadow-soft md:p-8" aria-labelledby="current-action">
+      <div className={expandedChat ? "flex min-h-0 flex-1 flex-col" : "mt-8 grid items-start gap-6 xl:grid-cols-5"}>
+        {!expandedChat && <div className="space-y-6 xl:col-span-3">
+          <section className="bg-secondary p-6 text-secondary-foreground md:p-8" aria-labelledby="current-action">
             <p className="text-sm font-medium uppercase tracking-wide opacity-75">{step ? "Your current step" : "All finished"}</p>
             {step ? (
               <>
                 <h2 id="current-action" className="mt-3 max-w-xl font-display text-2xl leading-snug md:text-3xl">{currentStepTitle(task)}</h2>
                 {task.alternativeStepId === step.id && <p className="mt-2 text-sm opacity-75">Same objective, a different way in.</p>}
                 <div className="mt-7 flex flex-wrap gap-3">
-                  <button onClick={handleComplete} disabled={completing} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90">
-                    <Check className="h-4 w-4" aria-hidden /> Done
-                  </button>
-                  <button onClick={() =>  submit("No quiero realizar el paso actual de esta manera. Propón una sola alternativa pequeña y concreta que ayude a cumplir el mismo objetivo. Espera mi confirmación.")}
-                    disabled={sending} className="inline-flex items-center gap-2 rounded-xl bg-card px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50">
+                  <Button onClick={handleComplete} disabled={completing || sending} className="h-11 rounded-xl px-5">
+                    <Check className="h-4 w-4" aria-hidden /> {completing ? "Confirming…" : "Done"}
+                  </Button>
+                  <Button variant="outline" onClick={() =>  submit("No quiero realizar el paso actual de esta manera. Propón una sola alternativa pequeña y concreta que ayude a cumplir el mismo objetivo. Espera mi confirmación.")}
+                    disabled={sending || completing} className="h-11 rounded-xl bg-card px-4">
                     <RefreshCw className="h-4 w-4" aria-hidden /> Try another way
-                  </button>
-                  <a href="#task-conversation" className="inline-flex items-center gap-2 rounded-xl border border-secondary-foreground/20 px-4 py-2.5 text-sm font-medium hover:bg-card/50">
+                  </Button>
+                  <Button variant="ghost" onClick={() => { inputRef.current?.focus(); inputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); }} className="h-11 rounded-xl px-4">
                     <MessageCircle className="h-4 w-4" aria-hidden /> I need help
-                  </a>
+                  </Button>
                 </div>
               </>
             ) : (
@@ -168,7 +178,7 @@ function TaskWorkspace() {
             )}
           </section>
 
-          <section className="rounded-2xl border border-border bg-card p-6 shadow-soft" aria-labelledby="steps-title">
+          <section className="border-t border-border px-2 py-6" aria-labelledby="steps-title">
             <h2 id="steps-title" className="text-lg font-medium">Your steps</h2>
             {completed > 0 ? (
               <ol className="mt-4 space-y-3">
@@ -182,36 +192,47 @@ function TaskWorkspace() {
             ) : <p className="mt-3 text-sm text-muted-foreground">Completed steps will appear here.</p>}
             {remaining.length > 0 && (
               <div className="mt-5 border-t border-border pt-4">
-                <button onClick={() => setShowRemaining((value) => !value)} aria-expanded={showRemaining} className="flex w-full items-center justify-between text-left text-sm font-medium">
+                <Button variant="ghost" onClick={() => setShowRemaining((value) => !value)} aria-expanded={showRemaining} className="h-11 w-full justify-between whitespace-normal px-0 text-left">
                   Remaining steps <span className="flex items-center gap-2 text-muted-foreground">{remaining.length}<ChevronDown className={`h-4 w-4 transition-transform ${showRemaining ? "rotate-180" : ""}`} aria-hidden /></span>
-                </button>
+                </Button>
                 {showRemaining && <ol className="mt-4 space-y-3 pl-1 text-sm text-muted-foreground">{remaining.map((item) => <li key={item.id} className="flex gap-3"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-border" />{item.title}</li>)}</ol>}
               </div>
             )}
           </section>
-        </div>
+        </div>}
 
-        <section id="task-conversation" className="flex min-h-[32rem] scroll-mt-6 flex-col rounded-2xl border border-border bg-card shadow-soft lg:sticky lg:top-6 lg:col-span-2 lg:h-[calc(100vh-3rem)]" aria-labelledby="conversation-title">
-          <div className="border-b border-border p-5">
-            <h2 id="conversation-title" className="text-lg font-medium">Task assistant</h2>
-            <p className="mt-1 text-xs text-muted-foreground">This conversation stays with this task.</p>
+        <section id="task-conversation" className={expandedChat ? "flex min-h-0 flex-1 flex-col bg-background" : "flex h-[36rem] min-w-0 scroll-mt-6 flex-col rounded-2xl border border-border bg-card shadow-soft xl:sticky xl:top-6 xl:col-span-2 xl:h-[calc(100dvh-3rem)]"} aria-labelledby="conversation-title">
+          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border p-4 sm:p-5">
+            <div className="flex min-w-0 items-start gap-3">
+              {expandedChat && <ConversationNavigation selectedTaskId={taskId} />}
+              <div className="min-w-0"><h2 id="conversation-title" className="text-lg font-medium">{expandedChat ? task.title : "Task assistant"}</h2>
+              {expandedChat && <p className="mt-1 text-xs text-muted-foreground">{completed}/{task.steps.length} steps completed</p>}</div>
+            </div>
+            <Button asChild variant="ghost" size={expandedChat ? "default" : "icon"} className="h-11 shrink-0 rounded-xl" title={expandedChat ? "Back to task" : "Expand conversation"}>
+              <Link to="/tasks/$taskId" params={{ taskId }} search={{ chat: expandedChat ? undefined : true }} aria-label={expandedChat ? "Back to task" : "Expand conversation"}>
+                {expandedChat ? <><ArrowLeft aria-hidden /><span className="hidden sm:inline">Back to task</span></> : <Maximize2 aria-hidden />}
+              </Link>
+            </Button>
           </div>
-          <div className="flex-1 space-y-5 overflow-y-auto p-5" aria-live="polite">
+          <div className="min-h-0 flex-1 overflow-y-auto" aria-live="polite"><div className="mx-auto w-full max-w-3xl space-y-5 p-4 sm:p-6">
             {task.messages.length === 0 && <div className="py-8 text-center"><Leaf className="mx-auto h-6 w-6 text-primary" aria-hidden /><p className="mt-3 text-sm text-muted-foreground">Stuck on this step? Tell me what feels difficult.</p></div>}
             {task.messages.map((message) => (
-              <div key={message.id} className={message.role === "user" ? "ml-8 rounded-2xl rounded-br-md bg-primary px-4 py-3 text-sm text-primary-foreground" : "mr-3 rounded-2xl border border-border bg-background p-4 text-sm"}>
+              <div key={message.id} className={message.role === "user" ? "ml-8 rounded-2xl rounded-br-md bg-primary px-4 py-3 text-sm text-primary-foreground" : "mr-3 p-2 text-sm"}>
                 {message.role === "assistant" && <p className="mb-2 text-xs font-medium uppercase tracking-wide text-primary">One small step</p>}
                 <p className="whitespace-pre-line leading-relaxed"><EmphasizedText text={message.text} /></p>
               </div>
             ))}
+            {(sending || completing) && <p role="status" className="text-sm text-muted-foreground">Steady is thinking…</p>}
             <div ref={endRef} />
           </div>
-          <form onSubmit={(event) => { event.preventDefault(); submit(); }} className="m-4 mt-0 flex items-end gap-2 rounded-xl border border-border bg-background p-2">
+          </div>
+          <div className="mx-auto w-full max-w-3xl shrink-0 p-4"><form onSubmit={(event) => { event.preventDefault(); submit(); }} className="flex items-end gap-2 rounded-xl border border-border bg-card p-2">
             <label htmlFor="task-message" className="sr-only">Ask for help with this task</label>
-            <textarea id="task-message" rows={2} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submit(); } }} placeholder="What feels difficult?" className="max-h-32 flex-1 resize-none bg-transparent px-2 py-1 text-sm outline-none placeholder:text-muted-foreground" />
-            <button type="submit" disabled={!input.trim()} aria-label="Send message" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground disabled:opacity-40"><ArrowUp className="h-4 w-4" aria-hidden /></button>
-          </form>
+            <textarea ref={inputRef} id="task-message" rows={2} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submit(); } }} placeholder="What feels difficult?" className="max-h-32 min-w-0 flex-1 resize-none bg-transparent px-2 py-1 text-sm outline-none placeholder:text-muted-foreground" />
+            <Button type="submit" size="icon" disabled={!input.trim() || sending || completing} aria-label="Send message" className="h-11 w-11 shrink-0 rounded-xl"><ArrowUp aria-hidden /></Button>
+          </form></div>
         </section>
+      </div>
       </div>
     </div>
   );
