@@ -252,6 +252,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         if (starter ? !plan.alternative?.acknowledged || plan.completed_steps.includes(index) : !plan.completed_steps.includes(index)) throw new Error("The assistant has not confirmed this action. Progress is unchanged.");
       }
       if (intent === "alternative" && (!plan.alternative || plan.alternative.step_index !== index)) throw new Error("No saved alternative was confirmed. Your original step is unchanged.");
+      if (intent === "accept-action" && plan.action_state !== "accepted") throw new Error("The assistant has not confirmed this action yet. Please retry.");
       if (intent === "chat" && text) appendMessage(taskId, { id: `${operationId}-user`, role: "user", text });
       appendMessage(taskId, { id: `${operationId}-reply`, role: "assistant", text: reply });
       patchTask(taskId, planPatch(task, plan, intent === "complete"));

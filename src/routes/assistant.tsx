@@ -58,7 +58,7 @@ function Assistant() {
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, thinking]);
+  }, [messages, activeTask?.messages.length, thinking]);
 
   async function send(text: string) {
     const trimmed = text.trim();
