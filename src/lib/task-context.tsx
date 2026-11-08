@@ -242,7 +242,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       "accept-milestone": text ?? "Create the explicitly approved milestone plan."
     };
     try {
-      const reply = await sendToAdk(taskId, prompts[intent], { intent, operation_id: operationId, expected_step: index, alternative_id: task.activeAlternative?.id, confirmed: intent === "complete", ...goalContext(task) });
+      const reply = await sendToAdk(taskId, prompts[intent], { intent, operation_id: operationId, expected_step: index, alternative_id: task.activeAlternative?.id, completion_scope: task.activeAlternative?.kind === "starter" && !task.activeAlternative.acknowledged ? "starter" : "step", confirmed: intent === "complete", ...goalContext(task) });
       const plan = await getAdkTaskPlan(taskId);
       if (!plan) throw new Error("The assistant did not return saved action state. Retry when ADK is available.");
       if (plan.steps.length !== task.steps.length || plan.steps.some((title, i) => title !== task.steps[i]?.title)) throw new Error("The saved ADK plan differs from your approved steps. Nothing was changed.");
