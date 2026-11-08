@@ -1,4 +1,5 @@
 
+import type { Timing } from "@/lib/task-details";
 const ADK_URL = "http://127.0.0.1:8002";
 const APP_NAME = "my_agent";
 const USER_ID = "student_001"; // Usuario temporal para las pruebas locales
@@ -13,7 +14,8 @@ type AdkEvent = {
 
 export async function sendToAdk(
   sessionId: string,
-  message: string
+  message: string,
+  context?: Record<string, unknown>
 ): Promise<string> {
   const sessionUrl =
     `${ADK_URL}/apps/${APP_NAME}/users/${USER_ID}/sessions/${encodeURIComponent(sessionId)}`;
@@ -45,7 +47,7 @@ export async function sendToAdk(
       sessionId,
       newMessage: {
         role: "user",
-        parts: [{ text: message }],
+        parts: [{ text: context ? JSON.stringify({ steady_request: context, message }) : message }],
       },
     }),
   });
@@ -71,7 +73,9 @@ export async function sendToAdk(
     )
     .filter(Boolean);
 
-  return replies.at(-1) ?? "No pude generar una respuesta. Inténtalo de nuevo.";
+  const reply = replies.at(-1);
+  if (!reply) throw new Error("ADK returned no reply. Please retry.");
+  return reply;
 }
 
 
@@ -81,6 +85,12 @@ export type AdkTaskPlan = {
   current_step: number;
   completed_steps: number[];
   status: string;
+  alternative?: { id: string; step_index: number; text: string; kind: "equivalent" | "starter"; acknowledged?: boolean } | null;
+  timing?: Timing;
+  action_state?: "proposed" | "accepted";
+  action_receipt?: string;
+  milestone_proposal?: { id: string; title: string; steps: string[]; reason: string; contribution: string };
+  outcome?: string;
 };
 
 export async function getAdkTaskPlan(

@@ -2,7 +2,10 @@ import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowUp, Check, CheckCircle2, ChevronDown, Leaf, Maximize2, MessageCircle, PartyPopper, RefreshCw } from "lucide-react";
 import { currentStep, currentStepTitle } from "@/lib/mock-data";
-import { sendToAdk, getAdkTaskPlan } from "@/lib/adk-client";
+import { TaskActions } from "@/components/TaskActions";
+import { TimingEditor } from "@/components/TimingEditor";
+import { ProjectGoalEditor, GoalOverview } from "@/components/GoalConnections";
+import { timingLabel } from "@/lib/task-details";
 import { useTasks } from "@/lib/task-context";
 import { EmphasizedText } from "@/components/EmphasizedText";
 import { Button } from "@/components/ui/button";
@@ -27,16 +30,17 @@ export const Route = createFileRoute("/tasks/$taskId")({
 function TaskWorkspace() {
   const { taskId } = Route.useParams();
   const { chat: expandedChat } = Route.useSearch();
-  const { tasks, appendMessage, syncProgress } = useTasks();
+  const { tasks, goals, runAction, pending, errors, saveTiming, ready } = useTasks();
   const task = tasks.find((item) => item.id === taskId);
   const [showRemaining, setShowRemaining] = useState(false);
   const [input, setInput] = useState("");
-  const [sending, setSending] = useState(false);
-  const [completing, setCompleting] = useState(false);
+  const sending = !!pending[taskId];
+  const completing = false;
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }); }, [task?.messages.length]);
+  if (!ready) return <p role="status" className="p-6">Restoring your projects…</p>;
   if (!task) throw notFound();
 
   const step = currentStep(task);
@@ -45,86 +49,12 @@ function TaskWorkspace() {
   const currentIndex = step ? task.steps.findIndex((item) => item.id === step.id) : -1;
   const remaining = currentIndex >= 0 ? task.steps.slice(currentIndex + 1) : [];
   
-  async function handleComplete() {
-    if (!step || completing) return;
-
-    setCompleting(true);
-
-    try {
-      const reply = await sendToAdk(
-        taskId,
-        "I have completed the current step. Mark it as completed and show only the next step. Respond in the language of our conversation."
-      );
-
-      appendMessage(taskId, {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        text: reply,
-      });
-
-      const plan = await getAdkTaskPlan(taskId);
-
-      // Actualizar el frontend solo si ADK confirmó el paso.
-      if (plan?.completed_steps.includes(currentIndex)) {
-        syncProgress(
-          taskId,
-          plan.completed_steps.map((index) => `step-${index}`)
-        );
-      } else {
-        alert("El agente todavía no confirmó este paso. Inténtalo nuevamente.");
-      }
-    } catch (error) {
-      console.error("Error completing step:", error);
-      alert("No se pudo actualizar el progreso. Inténtalo nuevamente.");
-    } finally {
-      setCompleting(false);
-    }
-  }
-
-
-  
   async function submit(textOverride?: string) {
     const text = (textOverride ?? input).trim();
     if (!text || sending) return;
-
-    setInput("");
-    setSending(true);
-
-    appendMessage(taskId, {
-      id: crypto.randomUUID(),
-      role: "user",
-      text,
-    });
-
-    try {
-      const reply = await sendToAdk(taskId, text);
-      const plan = await getAdkTaskPlan(taskId);
-
-      if (plan) {
-        syncProgress(
-          taskId,
-          plan.completed_steps.map((index) => `step-${index}`)
-        );
-      }
-
-      appendMessage(taskId, {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        text: reply,
-      });
-    } catch (error) {
-      console.error("Error connecting task chat to ADK:", error);
-
-      appendMessage(taskId, {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        text: "No pude conectarme con el asistente. Inténtalo nuevamente.",
-      });
-    } finally {
-      setSending(false);
-    }
+    if (await runAction(taskId, "chat", text)) setInput("");
   }
-
+  const parentGoal = goals.find((goal) => goal.id === task.goalId);
 
   return (
     <div className={expandedChat ? "mx-auto flex h-[calc(100dvh-8rem)] min-h-[24rem] max-w-6xl md:h-dvh" : "mx-auto max-w-6xl px-4 py-6 sm:px-6 md:px-8"}>
@@ -136,8 +66,10 @@ function TaskWorkspace() {
       </Link>
       <header className="mt-6 flex flex-col justify-between gap-5 md:flex-row md:items-end">
         <div className="max-w-2xl">
-          <p className="text-sm font-medium text-primary">{task.course} · {task.due}</p>
+          <p className="text-sm font-medium text-primary">{task.course} · {timingLabel(task)}</p>
           <h1 className="mt-2 text-3xl font-medium md:text-4xl">{task.title}</h1>
+          {parentGoal && <p className="mt-2 text-sm text-muted-foreground">Goal: {parentGoal.title}{task.contribution && <> · {task.contribution}</>}</p>}
+          <div className="mt-2 flex flex-wrap gap-3"><TimingEditor value={task.timing} onSave={(timing) => saveTiming(task.id, timing)} label="Edit timing" /><ProjectGoalEditor task={task} /></div>
           {task.objective !== task.title && <p className="mt-3 leading-relaxed text-muted-foreground">{task.objective}</p>}
         </div>
         <div className="shrink-0 md:text-right">
@@ -156,19 +88,8 @@ function TaskWorkspace() {
             {step ? (
               <>
                 <h2 id="current-action" className="mt-3 max-w-xl font-display text-2xl leading-snug md:text-3xl">{currentStepTitle(task)}</h2>
-                {task.alternativeStepId === step.id && <p className="mt-2 text-sm opacity-75">Same objective, a different way in.</p>}
-                <div className="mt-7 flex flex-wrap gap-3">
-                  <Button onClick={handleComplete} disabled={completing || sending} className="h-11 rounded-xl px-5">
-                    <Check className="h-4 w-4" aria-hidden /> {completing ? "Confirming…" : "Done"}
-                  </Button>
-                  <Button variant="outline" onClick={() =>  submit("No quiero realizar el paso actual de esta manera. Propón una sola alternativa pequeña y concreta que ayude a cumplir el mismo objetivo. Espera mi confirmación.")}
-                    disabled={sending || completing} className="h-11 rounded-xl bg-card px-4">
-                    <RefreshCw className="h-4 w-4" aria-hidden /> Try another way
-                  </Button>
-                  <Button variant="ghost" onClick={() => { inputRef.current?.focus(); inputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); }} className="h-11 rounded-xl px-4">
-                    <MessageCircle className="h-4 w-4" aria-hidden /> I need help
-                  </Button>
-                </div>
+                <p className="mt-2 text-xs text-muted-foreground">Project timing: {timingLabel(task)}</p>
+                <div className="mt-6"><TaskActions task={task} onHelp={() => { inputRef.current?.focus(); inputRef.current?.scrollIntoView({ block: "center" }); }} /></div>
               </>
             ) : (
               <div className="mt-4 flex items-center gap-4">
@@ -199,6 +120,7 @@ function TaskWorkspace() {
               </div>
             )}
           </section>
+          {parentGoal && !step && <GoalOverview />}
         </div>}
 
         <section id="task-conversation" className={expandedChat ? "flex min-h-0 flex-1 flex-col bg-background" : "flex h-[36rem] min-w-0 scroll-mt-6 flex-col rounded-2xl border border-border bg-card shadow-soft xl:sticky xl:top-6 xl:col-span-2 xl:h-[calc(100dvh-3rem)]"} aria-labelledby="conversation-title">
@@ -226,7 +148,11 @@ function TaskWorkspace() {
             <div ref={endRef} />
           </div>
           </div>
-          <div className="mx-auto w-full max-w-3xl shrink-0 p-4"><form onSubmit={(event) => { event.preventDefault(); submit(); }} className="flex items-end gap-2 rounded-xl border border-border bg-card p-2">
+          <div className="mx-auto w-full max-w-3xl shrink-0 p-4">
+            {step && <div className="mb-3"><p className="mb-2 text-sm font-medium">{currentStepTitle(task)}</p><TaskActions task={task} onHelp={() => inputRef.current?.focus()} /></div>}
+            {!step && parentGoal && <div className="max-h-64 overflow-y-auto"><GoalOverview /></div>}
+            {!step && errors[taskId] && <p role="alert" className="mb-2 text-sm text-destructive">{errors[taskId]}</p>}
+            <form onSubmit={(event) => { event.preventDefault(); submit(); }} className="flex items-end gap-2 rounded-xl border border-border bg-card p-2">
             <label htmlFor="task-message" className="sr-only">Ask for help with this task</label>
             <textarea ref={inputRef} id="task-message" rows={2} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submit(); } }} placeholder="What feels difficult?" className="max-h-32 min-w-0 flex-1 resize-none bg-transparent px-2 py-1 text-sm outline-none placeholder:text-muted-foreground" />
             <Button type="submit" size="icon" disabled={!input.trim() || sending || completing} aria-label="Send message" className="h-11 w-11 shrink-0 rounded-xl"><ArrowUp aria-hidden /></Button>

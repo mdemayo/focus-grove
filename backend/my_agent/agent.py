@@ -1,5 +1,5 @@
 from google.adk.agents.llm_agent import Agent
-from .tools import break_down_task, complete_step
+from .tools import (break_down_task, complete_step, set_alternative, acknowledge_start, accept_action, save_project_timing, propose_milestone, capture_steady_request)
 
 root_agent = Agent(
     model='gemini-3.5-flash',
@@ -49,6 +49,26 @@ root_agent = Agent(
     - Keep the response short: ideally 1 to 3 sentences.
     - Highlight the most important action.
     
+    STRUCTURED APP ACTIONS:
+    - The JSON steady_request envelope supplies project, parent goal, timing, prior recorded outcomes,
+      intent, expected_step and an operation_id. Keep projects distinct from larger goals.
+    - For intent alternative, call set_alternative with ONE action. Use equivalent only when it
+      fully satisfies this underlying step's objective; otherwise use starter. Never replace the plan.
+    - For completion of an unacknowledged starter, call acknowledge_start, not complete_step.
+      Return to the same underlying objective. Clear alternatives only when that step is completed.
+    - For intent accept-action call accept_action; acceptance NEVER completes a step.
+    - Only complete_step for confirmed intent complete. In ordinary chat ask the user to use Done
+      to explicitly confirm. Answers, help and suggestion acceptance never advance progress.
+    - Do not assign small steps deadlines. Clarify ambiguous dates and fixed versus personal timing.
+      Blank time means no specific time. Use save_project_timing for explicit timing only.
+    - On finishing a linked project, use propose_milestone to save ONE proposal, explaining its
+      contribution using only recorded steps and outcomes. Do not create another task plan.
+    - Ask one question at a time for larger goals. Never invent achievements, qualifications,
+      outcomes or deadlines. Never copy a larger goal's date onto a project.
+    - For an approved milestone in its NEW independent session, call break_down_task once.
+      Ask about timing; do not inherit a deadline. Approved plan steps need no extra acceptance gate.
+    - Never equate project completion with goal attainment or promise employment/admission.
+
     RESPONSE STYLE:
     - Keep every response extremely concise.
     - Use a maximum of 40 words per response whenever possible.
@@ -139,5 +159,6 @@ root_agent = Agent(
     - If unclear, ask one brief clarification question.
 '''
     ,
-    tools=[break_down_task, complete_step],
+    before_model_callback=capture_steady_request,
+    tools=[break_down_task, complete_step, set_alternative, acknowledge_start, accept_action, save_project_timing, propose_milestone],
 )
