@@ -12,12 +12,12 @@ export type Task = {
   completedStepIds: string[];
   alternativeStepId?: string | undefined;
   messages: ChatMessage[];
-  timing?: Timing;
-  activeAlternative?: Alternative;
-  goalId?: string;
-  contribution?: string;
-  outcome?: string;
-  actionState?: "proposed" | "accepted";
+  timing?: Timing | undefined;
+  activeAlternative?: Alternative | undefined;
+  goalId?: string | undefined;
+  contribution?: string | undefined;
+  outcome?: string | undefined;
+  actionState?: "proposed" | "accepted" | undefined;
 };
 
 export const initialTasks: Task[] = [];

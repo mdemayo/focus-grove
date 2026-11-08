@@ -1,20 +1,20 @@
 import type { Task } from "@/lib/mock-data";
 
 export type Timing = { kind: "none" } | { kind: "fixed" | "personal"; date: string; time?: string };
-export type Alternative = { id: string; stepId: string; text: string; kind: "equivalent" | "starter"; acknowledged?: boolean };
+export type Alternative = { id: string; stepId: string; text: string; kind: "equivalent" | "starter"; acknowledged?: boolean | undefined };
 export type Milestone = { id: string; title: string; steps: string[]; reason: string; contribution: string; deferred?: boolean; acceptedTaskId?: string };
 export type Goal = { id: string; title: string; proposal?: Milestone };
 
 export function validTiming(value: unknown): value is Timing {
   if (!value || typeof value !== "object") return false;
   const t = value as Record<string, unknown>;
-  if (t.kind === "none") return true;
-  if (t.kind !== "fixed" && t.kind !== "personal") return false;
-  if (typeof t.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(t.date)) return false;
-  const [year, month, day] = t.date.split("-").map(Number);
+  if (t['kind'] === "none") return true;
+  if (t['kind'] !== "fixed" && t['kind'] !== "personal") return false;
+  if (typeof t['date'] !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(t['date'])) return false;
+  const [year, month, day] = t['date'].split("-").map(Number);
   const local = new Date(year ?? 0, (month ?? 0) - 1, day ?? 0);
   if (local.getFullYear() !== year || local.getMonth() + 1 !== month || local.getDate() !== day) return false;
-  return t.time === undefined || (typeof t.time === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(t.time));
+  return t['time'] === undefined || (typeof t['time'] === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(t['time']));
 }
 
 export function localDate(now: Date) {
@@ -32,12 +32,12 @@ export function deadlineState(timing: Timing | undefined, now = new Date()): "no
 export function timingLabel(task: Pick<Task, "timing" | "due">, now = new Date()): string {
   const t = task.timing;
   if (!t) return task.due || "No deadline";
-  if (t.kind === "none") return "No deadline";
-  const date = new Date(`${t.date}T12:00:00`);
+  if (t['kind'] === "none") return "No deadline";
+  const date = new Date(`${t['date']}T12:00:00`);
   const label = date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
   const state = deadlineState(t, now);
-  const prefix = state === "overdue" ? "Overdue" : state === "target-passed" ? "Target passed" : t.kind === "personal" ? "Personal target" : state === "today" ? "Due today" : "Due";
-  return `${prefix} · ${label}${t.time ? `, ${t.time}` : " · No specific time"}`;
+  const prefix = state === "overdue" ? "Overdue" : state === "target-passed" ? "Target passed" : t['kind'] === "personal" ? "Personal target" : state === "today" ? "Due today" : "Due";
+  return `${prefix} · ${label}${t['time'] ? `, ${t['time']}` : " · No specific time"}`;
 }
 
 export function orderedTaskIds(tasks: Task[], now = new Date()): string[] {
@@ -52,5 +52,6 @@ export function orderedTaskIds(tasks: Task[], now = new Date()): string[] {
 
 export function displayedAction(task: Task) {
   const step = task.steps.find((item) => !task.completedStepIds.includes(item.id));
-  return task.activeAlternative?.stepId === step?.id && !task.activeAlternative.acknowledged ? task.activeAlternative.text : step?.title;
+  const alternative = task.activeAlternative;
+  return alternative && alternative.stepId === step?.id && !alternative.acknowledged ? alternative.text : step?.title;
 }

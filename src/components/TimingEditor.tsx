@@ -3,7 +3,7 @@ import { CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { validTiming, type Timing } from "@/lib/task-details";
 
-export function TimingEditor({ value, onSave, label = "Timing" }: { value?: Timing; onSave: (timing: Timing) => void; label?: string }) {
+export function TimingEditor({ value, onSave, label = "Timing" }: { value?: Timing | undefined; onSave: (timing: Timing) => void; label?: string }) {
   const id = useId();
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState(value && value.kind !== "none" ? value.date : "");
