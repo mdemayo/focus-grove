@@ -194,7 +194,7 @@ export function planPatch(task: Task, plan: AdkTaskPlan, allowProgress: boolean)
   if (allowProgress && patch.completedStepIds?.includes(patch.activeAlternative?.stepId ?? task.activeAlternative?.stepId ?? "")) patch.activeAlternative = undefined;
   if (validTiming(plan.timing)) patch.timing = plan.timing;
   if (plan.action_state) patch.actionState = plan.action_state;
-  if (plan.outcome) patch.outcome = plan.outcome;
+  if (allowProgress && patch.completedStepIds?.length === task.steps.length) patch.outcome = task.steps.map((step) => step.title).join("; ");
   return patch;
 }
 
@@ -225,7 +225,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   const appendMessage = (taskId: string, message: ChatMessage) => dispatch({ type: "append-message", taskId, message });
   function goalContext(task: Task) {
     const goal = latest.current.goals.find((g) => g.id === task.goalId);
-    return { project: { title: task.title, objective: task.objective, timing: task.timing ?? null, legacy_timing: task.due }, goal: goal ? { id: goal.id, title: goal.title } : null, prior_outcomes: latest.current.tasks.filter((t) => t.goalId === task.goalId && t.id !== task.id && t.outcome).map((t) => ({ project: t.title, outcome: t.outcome })), current_milestone: task.title };
+    return { project: { title: task.title, objective: task.objective, timing: task.timing ?? null, legacy_timing: task.due, completed_actions: task.steps.filter((s) => task.completedStepIds.includes(s.id)).map((s) => s.title) }, goal: goal ? { id: goal.id, title: goal.title } : null, prior_outcomes: goal ? latest.current.tasks.filter((t) => t.goalId === goal.id && t.id !== task.id && t.outcome).map((t) => ({ project: t.title, outcome: t.outcome })) : [], current_milestone: task.title };
   }
   async function runAction(taskId: string, intent: ActionIntent, text?: string): Promise<boolean> {
     const task = latest.current.tasks.find((t) => t.id === taskId);
@@ -245,6 +245,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       const reply = await sendToAdk(taskId, prompts[intent], { intent, operation_id: operationId, expected_step: index, alternative_id: task.activeAlternative?.id, confirmed: intent === "complete", ...goalContext(task) });
       const plan = await getAdkTaskPlan(taskId);
       if (!plan) throw new Error("The assistant did not return saved action state. Retry when ADK is available.");
+      if (plan.steps.length !== task.steps.length || plan.steps.some((title, i) => title !== task.steps[i]?.title)) throw new Error("The saved ADK plan differs from your approved steps. Nothing was changed.");
       if (intent === "complete") {
         const starter = task.activeAlternative?.kind === "starter" && !task.activeAlternative.acknowledged;
         if (starter ? !plan.alternative?.acknowledged || plan.completed_steps.includes(index) : !plan.completed_steps.includes(index)) throw new Error("The assistant has not confirmed this action. Progress is unchanged.");
@@ -255,7 +256,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       patchTask(taskId, planPatch(task, plan, intent === "complete"));
       if (task.goalId && plan.milestone_proposal) {
         const proposal = plan.milestone_proposal;
-        setGoals((all) => all.map((g) => g.id === task.goalId && !g.proposal?.acceptedTaskId ? { ...g, proposal } : g));
+        setGoals((all) => all.map((g) => g.id === task.goalId && (!g.proposal?.acceptedTaskId || g.proposal.id !== proposal.id) ? { ...g, proposal: g.proposal?.id === proposal.id ? { ...proposal, deferred: g.proposal.deferred ?? false } : proposal } : g));
       }
       return true;
     } catch (error) {

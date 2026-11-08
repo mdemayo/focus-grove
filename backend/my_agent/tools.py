@@ -73,7 +73,7 @@ def complete_step(tool_context: ToolContext) -> dict:
     if request.get("intent") != "complete" or not request.get("confirmed") or request.get("expected_step") != current:
         return {"status": "error", "message": "Explicit confirmation for this step is required. Use Done."}
     alternative = plan.get("alternative")
-    if alternative and alternative["kind"] == "starter" and not alternative.get("acknowledged"):
+    if request.get("completion_scope") == "starter" or (alternative and alternative["kind"] == "starter" and not alternative.get("acknowledged")):
         return {"status": "error", "message": "Acknowledge the starting action; do not complete the whole step."}
     steps = plan["steps"]
 
@@ -127,7 +127,7 @@ def acknowledge_start(tool_context: ToolContext) -> dict:
     plan = tool_context.state.get("task_plan", {})
     alt = plan.get("alternative")
     request = tool_context.state.get("steady_request", {})
-    if not alt or alt["kind"] != "starter" or request.get("intent") != "complete" or request.get("alternative_id") != alt["id"]:
+    if not alt or alt["kind"] != "starter" or request.get("intent") != "complete" or not request.get("confirmed") or request.get("expected_step") != plan.get("current_step") or request.get("alternative_id") != alt["id"]:
         return {"status": "error"}
     tool_context.state["task_plan"] = {**plan, "alternative": {**alt, "acknowledged": True}}
     return {"status": "success", "message": "Starting action recorded; underlying step stays active."}
