@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, ChevronDown, ChevronRight, Clock, MapPin, Pause, Play, RotateCcw, Smile } from "lucide-react";
-import { currentStep, currentStepTitle, schedule, weekFocus } from "@/lib/mock-data";
+import { ArrowLeft, ArrowRight, ChevronDown, ChevronRight, Pause, Play, RotateCcw, Smile } from "lucide-react";
+import { currentStep, currentStepTitle } from "@/lib/mock-data";
 import { useTasks } from "@/lib/task-context";
 import { Button } from "@/components/ui/button";
 import { TaskActions } from "@/components/TaskActions";
@@ -138,18 +138,21 @@ function TaskList() {
 function Dashboard() {
   const { tasks } = useTasks();
   const completed = tasks.filter((task) => !currentStep(task)).length;
-  const days = ["M", "T", "W", "T", "F", "S", "S"];
-  const max = Math.max(...weekFocus, 1);
+  const [today, setToday] = useState("");
+  useEffect(() => {
+    const updateDate = () => setToday(new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }));
+    updateDate();
+    const interval = window.setInterval(updateDate, 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
   return (
     <div className="mx-auto max-w-5xl px-6 py-10 md:px-10">
-      <header><p className="text-sm text-muted-foreground">Saturday, November 7</p><h1 className="mt-1 text-3xl font-medium md:text-4xl">Good afternoon, Mayra.</h1><p className="mt-2 text-muted-foreground">{completed} of {tasks.length} tasks complete. Progress at your own pace, one step at a time.</p></header>
+      <header><p className="min-h-5 text-sm text-muted-foreground">{today}</p><h1 className="mt-1 text-3xl font-medium md:text-4xl">Good morning, Mayra.</h1><p className="mt-2 text-muted-foreground">{completed} of {tasks.length} tasks complete. Progress at your own pace, one step at a time.</p></header>
       <NextStepCarousel />
       <GoalOverview />
-      <div className="mt-6 grid gap-6 md:grid-cols-5">
+      <div className="mt-8 grid items-start gap-6 md:grid-cols-5">
         <TaskList />
         <div className="md:col-span-2"><FocusTimer /></div>
-        <section className={`${card} md:col-span-3`} aria-labelledby="schedule-heading"><h2 id="schedule-heading" className="text-lg font-medium">Schedule</h2><ol className="mt-4 space-y-4">{schedule.map((event) => <li key={event.time} className="flex gap-4"><span className="flex w-14 items-center gap-1 text-sm font-medium text-primary"><Clock className="h-3.5 w-3.5" aria-hidden />{event.time}</span><span><span className="block">{event.title}</span><span className="flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="h-3 w-3" aria-hidden />{event.place}</span></span></li>)}</ol></section>
-        <section className={`${card} md:col-span-2`} aria-labelledby="week-heading"><h2 id="week-heading" className="text-lg font-medium">Focus this week</h2><p className="text-sm text-muted-foreground">{weekFocus.reduce((a, b) => a + b, 0)} focus blocks</p><div className="mt-6 flex h-28 items-end justify-between gap-2">{weekFocus.map((value, index) => <div key={index} className="flex flex-1 flex-col items-center gap-2"><div className="w-full rounded-md bg-chart-4" style={{ height: `${(value / max) * 100}%`, minHeight: 4 }} aria-label={`${value} blocks`} /><span className="text-xs text-muted-foreground">{days[index]}</span></div>)}</div></section>
       </div>
     </div>
   );
