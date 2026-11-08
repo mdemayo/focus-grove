@@ -10,8 +10,12 @@ import { Route as TaskRoute } from "@/routes/tasks.$taskId";
 describe("App routing", () => {
   it("expands and collapses the same task route without changing the session ID", () => {
     const router = createRouter({ routeTree, context: { queryClient: new QueryClient() } });
-    const workspace = router.matchRoutes("/tasks/task_existing");
-    const chat = router.matchRoutes("/tasks/task_existing?chat=true");
+    const workspaceLocation = router.buildLocation({ to: "/tasks/$taskId", params: { taskId: "task_existing" }, search: {} });
+    const chatLocation = router.buildLocation({ to: "/tasks/$taskId", params: { taskId: "task_existing" }, search: { chat: true } });
+    const workspace = router.matchRoutes(workspaceLocation.pathname);
+    const chat = router.matchRoutes(chatLocation.pathname);
+    expect(chatLocation.search).toEqual({ chat: true });
+    expect(workspaceLocation.search).toEqual({});
     expect(workspace.at(-1)?.routeId).toBe("/tasks/$taskId");
     expect(chat.at(-1)?.routeId).toBe("/tasks/$taskId");
     expect(chat.at(-1)?.params).toEqual({ taskId: "task_existing" });
