@@ -205,6 +205,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   const [pending, setPending] = useState<Record<string, boolean>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const locks = useRef(new Set<string>());
+  const storageReadable = useRef(true);
   const latest = useRef({ tasks, goals });
   latest.current = { tasks, goals };
   useEffect(() => {
@@ -213,11 +214,11 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       const rows = Array.isArray(saved) ? saved : saved?.tasks;
       if (Array.isArray(rows)) dispatch({ type: "restore", tasks: rows.filter((t) => t && typeof t.id === "string" && Array.isArray(t.steps) && Array.isArray(t.messages) && Array.isArray(t.completedStepIds)) });
       if (Array.isArray(saved?.goals)) setGoals(saved.goals);
-    } catch { /* Keep unreadable legacy storage untouched until a user change. */ }
+    } catch { storageReadable.current = false; setErrors((e) => ({ ...e, storage: "Saved browser data could not be read and has been left untouched." })); }
     setReady(true);
   }, []);
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !storageReadable.current) return;
     try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 2, tasks, goals })); }
     catch { setErrors((e) => ({ ...e, storage: "Changes could not be saved in this browser." })); }
   }, [tasks, goals, ready]);

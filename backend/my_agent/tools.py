@@ -37,7 +37,8 @@ def break_down_task(
         "steps": clean_steps,
         "current_step": 0,
         "completed_steps": [],
-        "status": "in_progress"
+        "status": "in_progress",
+        **({"timing": tool_context.state.get("steady_request", {}).get("project", {}).get("timing")} if tool_context.state.get("steady_request", {}).get("project", {}).get("timing") else {})
         }
     
     return {
@@ -93,6 +94,7 @@ def complete_step(tool_context: ToolContext) -> dict:
 
     if updated_plan["current_step"] >= len(steps):
         updated_plan["status"] = "completed"
+        updated_plan["outcome"] = "; ".join(steps)
         next_step = None
     else:
         next_step = steps[updated_plan["current_step"]]
