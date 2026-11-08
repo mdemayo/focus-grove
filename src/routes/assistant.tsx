@@ -8,6 +8,9 @@ import { EmphasizedText } from "@/components/EmphasizedText";
 import { ConversationHistory } from "@/components/ConversationHistory";
 import { ConversationNavigation } from "@/components/ConversationNavigation";
 import { Button } from "@/components/ui/button";
+import { TimingEditor } from "@/components/TimingEditor";
+import { TaskActions } from "@/components/TaskActions";
+import { type Timing } from "@/lib/task-details";
 
 export const Route = createFileRoute("/assistant")({
   head: () => ({
@@ -31,7 +34,11 @@ export const Route = createFileRoute("/assistant")({
 });
 
 function Assistant() {
-  const { tasks, addTask } = useTasks();
+  const { tasks, addTask, runAction, goals } = useTasks();
+  const [timing, setTiming] = useState<Timing>();
+  const [goalId, setGoalId] = useState("");
+  const [error, setError] = useState("");
+  const sendLock = useRef(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
@@ -41,7 +48,9 @@ function Assistant() {
 
   // Cada nueva conversación utiliza una sesión independiente de ADK.
   // Se conserva mientras este componente permanezca abierto.
-  const sessionIdRef = useRef(`task_${crypto.randomUUID()}`);
+  const sessionIdRef = useRef("");
+  const activeTask = tasks.find((task) => task.id === sessionIdRef.current);
+  const visibleMessages = activeTask?.messages ?? messages;
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -53,71 +62,26 @@ function Assistant() {
 
   async function send(text: string) {
     const trimmed = text.trim();
-
-    if (!trimmed || thinking) return;
-
-    setMessages((items) => [
-      ...items,
-      {
-        id: crypto.randomUUID(),
-        role: "user",
-        text: trimmed,
-      },
-    ]);
-
-    setInput("");
-    setThinking(true);
-
+    if (!trimmed || sendLock.current) return;
+    if (!sessionIdRef.current) sessionIdRef.current = `task_${crypto.randomUUID()}`;
+    sendLock.current = true; setThinking(true); setError("");
     try {
-      const reply = await sendToAdk(sessionIdRef.current, trimmed);
-      const plan = await getAdkTaskPlan(sessionIdRef.current);
-
-      if (plan && !tasks.some((task) => task.id === sessionIdRef.current)) {
-        addTask({
-          id: sessionIdRef.current,
-          title: plan.goal,
-          course: "General",
-          due: "Sin fecha",
-          minutes: 15,
-          objective: plan.goal,
-          steps: plan.steps.map((title, index) => ({
-            id: `step-${index}`,
-            title,
-          })),
-          completedStepIds: plan.completed_steps.map(
-            (index) => `step-${index}`
-          ),
-          messages: [
-            ...messages,
-            { id: crypto.randomUUID(), role: "user", text: trimmed },
-            { id: crypto.randomUUID(), role: "assistant", text: reply },
-          ],
-        });
+      if (activeTask) {
+        if (await runAction(activeTask.id, "chat", trimmed)) setInput("");
+        else setInput(trimmed);
+        return;
       }
-
-      setMessages((items) => [
-        ...items,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          text: reply,
-        },
-      ]);
-    } catch (error) {
-      console.error("Error connecting to ADK:", error);
-
-      setMessages((items) => [
-        ...items,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          text:
-            "No pude conectarme con el asistente. Inténtalo nuevamente.",
-        },
-      ]);
-    } finally {
-      setThinking(false);
-    }
+      const reply = await sendToAdk(sessionIdRef.current, trimmed, { intent: "chat", goal: goals.find((g) => g.id === goalId) ?? null, project: { timing: timing ?? null }, operation_id: crypto.randomUUID() });
+      const plan = await getAdkTaskPlan(sessionIdRef.current);
+      const nextMessages: ChatMessage[] = [...messages, { id: crypto.randomUUID(), role: "user", text: trimmed }, { id: crypto.randomUUID(), role: "assistant", text: reply }];
+      setMessages(nextMessages);
+      if (plan) {
+        addTask({ id: sessionIdRef.current, title: plan.goal, course: "General", due: "No deadline", timing: timing ?? plan.timing, goalId: goalId || undefined, minutes: 15, objective: plan.goal, steps: plan.steps.map((title, i) => ({ id: `step-${i}`, title })), completedStepIds: [], actionState: plan.action_state ?? "accepted", messages: nextMessages });
+      }
+      setInput("");
+    } catch {
+      setError("Could not reach the assistant. Your message is still here; please retry."); setInput(trimmed);
+    } finally { sendLock.current = false; setThinking(false); }
   }
 
   return (
@@ -139,7 +103,7 @@ function Assistant() {
              className="min-h-0 flex-1 overflow-y-auto py-6"
             aria-live="polite"
           >
-            {messages.length === 0 ? (
+            {visibleMessages.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center text-center">
                 <span className="grid h-14 w-14 place-items-center rounded-2xl bg-secondary text-secondary-foreground">
                   <Leaf className="h-7 w-7" aria-hidden />
@@ -169,7 +133,7 @@ function Assistant() {
               </div>
             ) : (
               <ul className="space-y-6">
-                {messages.map((message) => (
+                {visibleMessages.map((message) => (
                   <li
                     key={message.id}
                     className={
@@ -232,6 +196,8 @@ function Assistant() {
             )}
           </div>
 
+          {activeTask ? <div className="mb-3"><TaskActions task={activeTask} onHelp={() => inputRef.current?.focus()} /></div> : <div className="mb-3"><TimingEditor value={timing} onSave={setTiming} label="Project timing" />{goals.length > 0 && <label className="mt-2 flex flex-col gap-1 text-sm">Parent goal<select aria-label="Parent goal" value={goalId} onChange={(e) => setGoalId(e.target.value)} className="h-11 rounded-md border border-input bg-background px-2"><option value="">Independent project</option>{goals.map((g) => <option key={g.id} value={g.id}>{g.title}</option>)}</select></label>}</div>}
+          {error && <p role="alert" className="mb-3 text-sm text-destructive">{error}</p>}
           <form
             onSubmit={(event) => {
               event.preventDefault();
